@@ -1,0 +1,52 @@
+# Shared infra for GTPS hosting (Postgres + Redis), ISOLATED so it never
+# collides with the live Caddy / other production containers on this box.
+#
+# Run with an explicit project name so volumes/networks are namespaced:
+#   docker compose -p gtps_infra -f infra/docker-compose.yml up -d
+#
+# Host ports are deliberately OFF the common ones (5432/6379) to avoid clashing
+# with lapakflow/lapakgram/dlmarket Postgres already running. GrowServer
+# containers reach these via the shared `gtps_net` network by container name,
+# so the host port mappings below are only for debugging convenience.
+networks:
+  gtps_net:
+    name: gtps_net
+
+volumes:
+  gtps_pg_data:
+  gtps_redis_data:
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: gtps-postgres
+    restart: unless-stopped
+    networks: [gtps_net]
+    environment:
+      POSTGRES_USER: growserver
+      POSTGRES_PASSWORD: gtps_local_dev
+      POSTGRES_DB: growserver
+    volumes:
+      - gtps_pg_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5436:5432"   # debug only, bound to localhost
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U growserver"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: gtps-redis
+    restart: unless-stopped
+    networks: [gtps_net]
+    volumes:
+      - gtps_redis_data:/data
+    ports:
+      - "127.0.0.1:6381:6379"   # debug only, bound to localhost
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10

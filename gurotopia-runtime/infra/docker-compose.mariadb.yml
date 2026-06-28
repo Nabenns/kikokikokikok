@@ -1,0 +1,28 @@
+# MariaDB for Gurotopia (it uses MySQL, not Postgres like GrowServer).
+# Isolated project name to avoid clashing with gtps_infra (GrowServer's infra).
+# Run: docker compose -p gurotopia_infra -f infra/docker-compose.mariadb.yml up -d
+networks:
+  gtps_net:
+    name: gtps_net   # reuse existing network so gurotopia container can reach it
+
+volumes:
+  gurotopia_mysql_data:
+
+services:
+  mariadb:
+    image: mariadb:11.4
+    container_name: gurotopia-mariadb
+    restart: unless-stopped
+    networks: [gtps_net]
+    environment:
+      MARIADB_ROOT_PASSWORD: "ukEhT<ZM3~&t)jI{"
+      MARIADB_DATABASE: gurotopia
+    volumes:
+      - gurotopia_mysql_data:/var/lib/mysql
+    ports:
+      - "127.0.0.1:3307:3306"   # debug only, localhost-bound
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 3s
+      retries: 10

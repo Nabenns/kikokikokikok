@@ -1,0 +1,52 @@
+networks:
+  gtps_net:
+    name: gtps_net
+    external: true   # reuse existing network from gtps_infra
+
+services:
+  gurotopia:
+    build:
+      context: ./src
+      dockerfile: Dockerfile.gurotopia
+    image: gtps-gurotopia:latest
+    container_name: gtps-gurotopia
+    restart: unless-stopped
+    networks: [gtps_net]
+    environment:
+      GURO_DB_HOST: gurotopia-mariadb
+      GURO_DB_USER: root
+      GURO_DB_PASS: "ukEhT<ZM3~&t)jI{"
+      GURO_DB_NAME: gurotopia
+      GURO_DB_PORT: "3306"
+    volumes:
+      # Override server_data.php (server IP, port, loginurl)
+      - ./config/server_data.php:/app/server_data.php:ro
+      # items.dat must be at /app/items.dat (cwd of the binary)
+      - /var/www/growserver-cache/public/growtopia/items.dat:/app/items.dat:ro
+    ports:
+      - "0.0.0.0:17091:17091/udp"   # ENet game server
+      - "127.0.0.1:8444:443/tcp"    # HTTPS server_data (localhost, Caddy proxies)
+    depends_on:
+      gurotopia-mariadb:
+        condition: service_healthy
+
+  gurotopia-mariadb:
+    image: mariadb:11.4
+    container_name: gurotopia-mariadb
+    restart: unless-stopped
+    networks: [gtps_net]
+    environment:
+      MARIADB_ROOT_PASSWORD: "ukEhT<ZM3~&t)jI{"
+      MARIADB_DATABASE: gurotopia
+    volumes:
+      - gurotopia_mysql_data:/var/lib/mysql
+    ports:
+      - "127.0.0.1:3307:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  gurotopia_mysql_data:

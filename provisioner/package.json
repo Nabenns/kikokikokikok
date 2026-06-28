@@ -1,0 +1,32 @@
+{
+  "name": "gtps-host-provisioner",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Provisioning engine for GTPS hosting: allocates ports, generates per-tenant config, runs/manages GrowServer containers.",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "test": "tsx test/run.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fastify/cors": "^9.0.1",
+    "better-sqlite3": "^11.3.0",
+    "dockerode": "^4.0.2",
+    "fastify": "^4.28.1",
+    "pino": "^9.4.0",
+    "postgres": "^3.4.9",
+    "smol-toml": "^1.3.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/dockerode": "^3.3.31",
+    "@types/node": "^22.5.5",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2"
+  }
+}

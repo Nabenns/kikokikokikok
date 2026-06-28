@@ -1,0 +1,154 @@
+#pragma once
+
+enum wstate3 : u_char
+{
+    S_RIGHT =  0x00,
+    S_LOCKED = 0x10,
+    S_LEFT =   0x20,
+    S_TOGGLE = 0x40, // @note including mailbox which just toggles the visuals
+    S_PUBLIC = 0x80
+};
+
+/* locks that only occupy a number of tiles, and not the whole world. */
+#define is_tile_lock(id) (id == 202/*small*/ || id == 204/*big*/ || id == 206/*huge*/ || id == 4994/*builder*/)
+
+enum wstate4 : u_char
+{
+    S_WATER =    0x04,
+    S_GLUE =     0x08,
+    S_FIRE =     0x10,
+    /* paint buckets */
+    S_RED =      0x20,
+    S_GREEN =    0x40,
+    S_YELLOW =   S_RED | S_GREEN,
+    S_BLUE =     0x80,
+    S_AQUA =     S_GREEN | S_BLUE,
+    S_PURPLE =   S_RED | S_BLUE,
+    S_CHARCOAL = S_RED | S_GREEN | S_BLUE,
+    S_VANISH =   S_RED | S_YELLOW | S_GREEN | S_AQUA | S_BLUE | S_PURPLE | S_CHARCOAL
+};
+
+enum lock_state : u_char
+{
+    DISABLE_MUSIC = 0x10,
+    DISABLE_MUSIC_RENDER = 0x20,
+    RAINBOWS = 0x80
+};
+
+struct block 
+{
+    block(short _fg = 0, short _bg = 0, 
+        std::chrono::steady_clock::time_point _tick = std::chrono::steady_clock::time_point(),
+        std::string _label = "", u_char s3 = 0, u_char s4 = 0
+    ) : fg(_fg), bg(_bg), tick(_tick), label(_label), state(0, 0, s3, s4) {}
+    
+    short fg{0}, bg{0};
+    
+    std::chrono::steady_clock::time_point tick{}; // @note record a point in time for the tile e.g. tree growth, providers, ect.
+    std::string label{}; // @note sign/door label @todo store in seperate class
+
+    u_char state[4];
+
+    u_char hits[2] = {0, 0}; // @note fg, bg
+};
+#define cord(x,y) (y * 100 + x)
+
+struct door 
+{
+    door(std::string _dest, std::string _id, std::string _password, ::pos _pos) : 
+        dest(_dest), id(_id), password(_password), pos(_pos) {}
+
+    std::string dest{};
+    std::string id{};
+    std::string password{};
+    ::pos pos{};
+};
+
+struct display
+{
+    display(u_int _id, ::pos _pos) : id(_id), pos(_pos) {}
+
+    u_int id{};
+    ::pos pos{};
+};
+
+struct random_block
+{
+    random_block(u_char _value, ::pos _pos) : value(_value), pos(_pos) {}
+
+    u_char value{};
+    ::pos pos{};
+};
+
+struct object 
+{
+    object(u_short _id, u_short _count, ::pos _pos, u_int _uid) : id(_id), count(_count), pos(_pos), uid(_uid) {}
+    u_short id{};
+    u_short count{};
+    ::pos pos{};
+
+    u_int uid{};
+};
+
+class world 
+{
+public:
+    world(const std::string& name = "");
+
+    std::string name{};
+
+    int owner{ 00 }; // @note owner of world using peer's user id.
+    std::array<int, 6zu> admin{}; // @note admins (by user id). excluding owner. (6 is a experimental amount, if increase update me if any issue occur -leeendl)
+    bool is_public{}; // @note checks if world is public to break/place
+    u_char lock_state{0x00}; // @note uses lock_state::
+    u_char minimum_entry_level{1}; // @note minimal level required to enter a world
+
+    u_char visitors{}; // @note the current number of peers in a world, excluding invisable peers
+    u_char netid_counter{}; // @note a number that only increases, this value resets during ~world()
+
+    std::vector<::block> blocks; // @note all blocks, size of 1D meaning (6000) instead of 2D (100, 60)
+    u_int last_object_uid{0};
+    std::vector<::object> objects{};
+    std::vector<::door> doors{};
+    std::vector<::display> displays{};
+    std::vector<::random_block> random_blocks{};
+
+    ::pos 现weather{};
+
+    std::chrono::steady_clock::time_point last_access{std::chrono::steady_clock::now()};
+
+    void mysql_save();
+    bool mysql_load();
+};
+extern std::vector<world> worlds;
+
+extern void send_action(ENetPeer& p, const std::string& action, const std::string& str);
+
+extern void send_data(ENetPeer &peer, const std::vector<u_char> &&data);
+
+extern void state_visuals(ENetPeer &peer, state &&state);
+
+extern void tile_apply_damage(ENetEvent &event, state state, block &block, u_int value);
+
+/*
+* @brief set slot::count to nagative value if you want to remove an amount. 
+* @return the remaining amount if exeeds 200. e.g. emplace(slot{0, 201}) returns 1.
+*/
+extern u_short modify_item_inventory(ENetEvent& event, ::slot slot);
+
+extern int item_change_object(ENetEvent& event, ::slot slot, const ::pos& pos, signed uid = 0);
+
+void add_drop(ENetEvent &event, ::slot im, ::pos pos);
+
+extern void send_tile_update(ENetEvent &event, state s, block &b, world& w);
+
+extern void remove_fire(ENetEvent &event, state state, block &block, world& world);
+
+void generate_world(world &world, const std::string& name);
+
+bool door_mover(world &world, const ::pos &pos);
+
+namespace blast
+{
+    void thermonuclear(world &world, const std::string& name);
+}

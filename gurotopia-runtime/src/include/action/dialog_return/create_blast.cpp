@@ -1,0 +1,30 @@
+#include "pch.hpp"
+
+#include "action/quit_to_exit.hpp" // @note peer leave world
+#include "action/join_request.hpp" // @note peer enter (blast) world
+
+#include "create_blast.hpp"
+
+void create_blast(ENetEvent& event, const ::hPipe &hPipe)
+{
+    const u_short id = atoi(hPipe["id"].c_str());
+    std::string world_name = hPipe["name"];
+    
+    std::for_each(world_name.begin(), world_name.end(), [](char& c) { c = std::toupper(c); });
+
+    switch (id)
+    {
+        case 1402: // @note Thermonuclear Blast
+        {
+            auto it = std::ranges::find(worlds, world_name, &::world::name);
+            world &world = *it;
+            if (world.name.empty())
+            {
+                action::quit_to_exit(event, "", true);
+                blast::thermonuclear(world, world_name);
+                action::join_request(event, "", world_name);
+            }
+            break;
+        }
+    }
+}

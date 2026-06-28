@@ -1,0 +1,33 @@
+#include "pch.hpp"
+#include "on/SetBux.hpp"
+#include "on/ConsoleMessage.hpp"
+
+#include "item_activate_object.hpp"
+
+void item_activate_object(ENetEvent& event, state state) 
+{
+    ::peer *pPeer = static_cast<::peer*>(event.peer->data);
+
+    auto world = std::ranges::find(worlds, pPeer->recent_worlds.back(), &::world::name);
+    if (world == worlds.end()) return;
+
+    auto object = std::ranges::find(world->objects, state.id, &::object::uid);
+
+    auto item = std::ranges::find(items, object->id, &::item::id);
+    if (item->type != type::GEM)
+    {
+        on::ConsoleMessage(event.peer, (item->rarity >= 999) ?
+            std::format("Collected `w{} {}``.", object->count, item->raw_name) :
+            std::format("Collected `w{} {}``. Rarity: `w{}``", object->count, item->raw_name, item->rarity)
+        );
+        object->count = pPeer->emplace(::slot(object->id, object->count));
+    }
+    else 
+    {
+        pPeer->gems += object->count;
+        object->count = 0;
+        on::SetBux(event);
+    }
+    item_change_object(event, ::slot(object->id, object->count), object->pos, state.id/*@todo*/);
+    if (object->count == 0) world->objects.erase(object);
+}

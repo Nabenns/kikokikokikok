@@ -1,0 +1,60 @@
+# ========================================
+# Gurotopia GTPS — .gitignore
+# ========================================
+
+# --- Build artifacts ---
+*.out
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+build/
+
+# --- Dependencies / package managers ---
+node_modules/
+.pnp/
+.pnp.js
+
+# --- Next.js ---
+.next/
+out/
+
+# --- Docker ---
+*.log
+
+# --- Data & backups (runtime) ---
+backups/
+data/
+logs/
+*.db
+*.sqlite
+*.sqlite3
+
+# --- Runtime secrets ---
+.env
+.env.*
+!.env.example
+
+# --- IDE / editor ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# --- OS ---
+.cache/
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# --- Misc ---
+*.tmp
+*.temp
+tmp/

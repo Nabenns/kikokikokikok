@@ -1,0 +1,18 @@
+services:
+  gtps-community:
+    image: gtps-growserver:latest
+    container_name: gtps-community
+    restart: unless-stopped
+    networks: [gtps_net]
+    ports:
+      - "17091:17091/udp"
+      - "127.0.0.1:8443:443/tcp"
+      - "127.0.0.1:8088:8080/tcp"
+    volumes:
+      - /root/gtps-host/provisioner/data/configs/community.config.toml:/app/packages/config/config.toml
+    env_file:
+      - /root/gtps-host/.env.community
+
+networks:
+  gtps_net:
+    external: true

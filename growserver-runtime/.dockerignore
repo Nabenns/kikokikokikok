@@ -1,0 +1,10 @@
+# Keep the build context lean: the cloned repo's .git is large and the
+# install happens inside the image, so host node_modules/caches are irrelevant.
+src/.git
+src/node_modules
+src/**/node_modules
+src/.cache
+src/**/.cache
+src/**/dist
+src/**/.next
+**/*.log
