@@ -6,6 +6,7 @@
 #include "on/CountryState.hpp"
 #include "on/ConsoleMessage.hpp"
 #include "commands/weather.hpp"
+#include "commands/npc.hpp"
 #include "tools/ransuu.hpp"
 
 #include "join_request.hpp"
@@ -64,6 +65,7 @@ void action::join_request(ENetEvent& event, const std::string& header, const std
 
                 int offset = w_data - data.data();
                 auto item = std::ranges::find(items, block.fg, &::item::id); // @todo limit iteration during world enter
+                if (item == items.end()) { ++i; continue; } // @note unknown item id in world data: skip as plain block instead of UB deref
                 switch (item->type)
                 {
                     case type::TRAMPOLINE:
@@ -233,8 +235,11 @@ void action::join_request(ENetEvent& event, const std::string& header, const std
                         break;
                     }
                     default: 
-                        throw std::runtime_error(std::format("`w{}``'s visuals has not been added yet. ({})", 
-                            item->raw_name, item->type));
+                        // @note unhandled visual type: don't abort the whole world enter.
+                        // treat as a plain foreground block (no extra data) and log once for devs.
+                        std::fprintf(stderr, "[join_request] unhandled visual type %d for item %d (%s) in world %s\n",
+                            item->type, block.fg, item->raw_name.c_str(), world.name.c_str());
+                        break;
                 }
                 ++i;
             }
@@ -279,6 +284,15 @@ void action::join_request(ENetEvent& event, const std::string& header, const std
             if (pOthers->user_id != pPeer->user_id)
             {
                 on::Spawn(*event.peer, pOthers->netid, pOthers->user_id, pOthers->pos, std::format("`{}{}", pOthers->prefix, pOthers->growid), pOthers->country, pOthers->role, pOthers->role >= DEVELOPER, false);
+                /* send other player's clothing to the joining player so they don't appear white */
+                send_varlist(event.peer, {
+                    "OnSetClothing",
+                    CL_Vec3f{pOthers->clothing[hair], pOthers->clothing[shirt], pOthers->clothing[legs]},
+                    CL_Vec3f{pOthers->clothing[feet], pOthers->clothing[face], pOthers->clothing[hand]},
+                    CL_Vec3f{pOthers->clothing[back], pOthers->clothing[head], pOthers->clothing[charm]},
+                    (pOthers->state & S_GHOST) ? -140 : pOthers->skin_color,
+                    CL_Vec3f{pOthers->clothing[ances], 0.0f, 0.0f}
+                }, pOthers->netid);
                 on::Spawn(peer, pPeer->netid, pPeer->user_id, pPeer->pos, std::format("`{}{}", pPeer->prefix, pPeer->growid), pPeer->country, pPeer->role, pPeer->role >= DEVELOPER, false);
                 on::SetClothing(peer);
                 on::ConsoleMessage(&peer, std::format("`5<`{}{}`` entered, `w{}`` others here>``", pPeer->prefix, pPeer->growid, world.visitors));
@@ -311,11 +325,14 @@ void action::join_request(ENetEvent& event, const std::string& header, const std
             )
         );
         ++world.visitors;
+        pPeer->update_effects(); /* recalc double jump etc from saved clothing */
         on::SetClothing(*event.peer);
         on::CountryState(event);
+        npc::spawn_in_world(event.peer, world.name);
     }
     catch (const std::exception& exc)
     {
+        std::fprintf(stderr, "[join_request] failed to enter world: %s\n", exc.what());
         send_varlist(event.peer, { "OnFailedToEnterWorld" });
         return;
     }
